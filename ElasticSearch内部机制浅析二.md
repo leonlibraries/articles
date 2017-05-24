@@ -175,11 +175,12 @@ CP？AP？这或许并不是那么重要，但是我很看重这样的思考过�
 
 
 
-推荐阅读：
-* https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-update-settings.html
-* https://www.elastic.co/guide/en/elasticsearch/reference/current/search-request-preference.html
-* http://www.infoq.com/cn/articles/anatomy-of-an-elasticsearch-cluster-part02
-* https://www.elastic.co/guide/en/elasticsearch/guide/2.x/concurrency-solutions.html
-* https://www.elastic.co/guide/en/elasticsearch/guide/current/optimistic-concurrency-control.html
-* https://en.wikipedia.org/wiki/Optimistic_concurrency_control
-* https://zh.wikipedia.org/wiki/CAP定理
+Further Reading:
+
+https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-update-settings.html
+https://www.elastic.co/guide/en/elasticsearch/reference/current/search-request-preference.html
+http://www.infoq.com/cn/articles/anatomy-of-an-elasticsearch-cluster-part02
+https://www.elastic.co/guide/en/elasticsearch/guide/2.x/concurrency-solutions.html
+https://www.elastic.co/guide/en/elasticsearch/guide/current/optimistic-concurrency-control.html
+https://en.wikipedia.org/wiki/Optimistic_concurrency_control
+https://zh.wikipedia.org/wiki/CAP定理

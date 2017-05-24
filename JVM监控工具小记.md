@@ -93,8 +93,10 @@ Swap:  4063224k total,   383048k used,  3680176k free,  1130284k cached
 "VM Periodic Task Thread" prio=10 tid=0x00007ff094168800 nid=0x16030 waiting on condition
 ```
 
+当然，jstack 也可以看到某些你指定的线程是否存活。
+
 ## jmap（堆内存审查工具）
-jmap 用于查看堆内存使用状况，以下介绍 jmap 用法
+jmap 用于查看堆内存使用状况，下面介绍 jmap 的用法
 
 ```txt
 Usage:
@@ -173,7 +175,7 @@ ClassLoader@0x00000000826409a8
 --More--
 ```
 
-堆内存使用状况审查，包含 GC 算法、堆配置、以及新生代、老年代和永久代的内存占用情况
+堆内存使用状况审查，包含所指定的 GC 算法、堆配置、以及新生代、老年代和永久代的内存占用情况
 ```sh
 [appadm@abcabc ~]$ jmap -heap 90147
 Attaching to process ID 90147, please wait...
@@ -353,7 +355,66 @@ jstat 各参数含义
 * FGC、FGCT：Full GC次数和Full GC耗时
 * GCT：GC总耗时
 
+## GC 常识
+
+**Young Generation 中为什么需要 Survivor 区？**
+
+假设我们的 Java 内存模型是这样的
+```txt
+*******************************
+*          *                  *
+*   Eden   *      Tenured     *
+*          *                  *
+*******************************
+```
+YGC 本身是很频繁的（由于 Eden 区内存很小，回收的速度非常快），因此在每次当 Eden 区满的时候，执行 MinorGC（YGC），则会将 Object 直接丢到 Tenured 之中，这样一来 Tenured 很快就满了（理论来说 Tenured 空间比 Eden 大很多），此时会触发 MajorGC，MajorGC 会配合 MinGC 执行一次 Full GC。
+(此时不管增大 Tenured 的空间还是减小 Tenured 的空间都不是一个良方，前者会导致 FGC 的时间更长；后者会导致 FGC 频率更快。)
+我们知道 FGC 的代价相当大，因为 Tenured 内存空间很大，FGC 过程很长，长时间的 FGC 会导致应用短暂的不可用或者假死，这样的设计是很不合理的。
+
+因此这里引入了 Survivor 区，对于在规定的 YGC 次数下，其仍然不能够回收掉的数据，将会直接丢入 Tenured 区，否则将被回收。
+**这大大减少了数据进入 Tenured 的门槛，随之而来的就是减少了 MajorGC 的执行频率。**
+```txt
+***************************************************
+*          *                  *                   *
+*   Eden   *      Survivor    *     Tenured       *
+*          *                  *                   *
+***************************************************
+```
+**Survivor 为什么要区分为 From 和 To 两个区块？**
+
+上面的模型看似很美好，也的确一定程度上解决了 Tenured 增长过快的问题，然而 Survivor 区本身问题也很大。
+
+**本质上来说，将 Survivor 拆分为 From 和 To 相等大小的两块内存模型，其目的就是解决内存碎片化带来的一系列的问题**
+
+对象 A 在 Eden 区创建，回收时转移 Survivor 区，这里都没什么问题，但是此时对象 B 在 Eden 创建后且触发了回收，B 在 Survivor 中该怎么落脚？很简单，继续叠加上去。那么对象 C 来了呢？继续叠加？那么此时 B 被回收掉了之后，B 所占用的内存得到了释放，但是并不能够真正很好利用这块内存，因为如果要用，就势必造成堆内存不连续的情况。下图描述的就是这么一个过程。
+
+![内存碎片的产生过程](frag.png)
+
+于是乎这么一个内存模型产生了
+
+```txt
+***********************************************************
+*          *            *             *                   *
+*   Eden   *   From(S0) *    To(S1)   *     Tenured       *
+*          *            *             *                   *
+***********************************************************
+```
+
+嗯，对就是这么简单。
+
+实际上对象的内存的复制过程是这样的：
+
+```txt
+①Eden 创建连续的内存区域 -->  ② MinorGC 触发，Eden to S0 -->
+③MinorGC 二次触发，Eden & S0 to S1 --> ④MinorGC 三次触发，Eden & S1 to S0 -->
+如此往复......
+直到某数据的回收超出 YGC 约定阀值后，数据转入到 Tenured 区
+```
+这样的设计意思是 S0 与 S1 之间的数据是不断互相整理并复制，这保证了 S0 和 S1其中有一个内存空间在某个时间节点上必须是空的，另一个内存空间则是无碎片化的。而从第三步开始，涉及到 S0 与 S1的内存间复制算法相当重要，也就是这个算法确保避免了 Survivor 区域内存碎片化的情况。
 
 
 推荐阅读：
 * https://my.oschina.net/feichexia/blog/196575
+* https://dzone.com/articles/minor-gc-vs-major-gc-vs-full
+* http://stackoverflow.com/questions/10695298/java-gc-why-two-survivor-regions
+* http://blog.csdn.net/antony9118/article/details/51425581

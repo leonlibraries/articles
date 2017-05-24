@@ -22,19 +22,20 @@ HBase 基于 Google 的 Bigtable 思想， 附属于 Hadoop 的生态之下，�
 * put get是操作指定行的数据，需提供 Row Key
 * scan 操作一定范围内的数据，需指定开始 Row Key 和结束 Row Key ，如果不指定默认取全部行数据
 
-## 基本架构
+## 基本架构及概念介绍
 ![architect](architect.png)
 * **HMaster**: 负责 DDL 创建或删除tables，同一时间只能有一个 active 状态的 master 存在，其余 standby；
 * **Zookeeper**: 判定 HMaster 的状态，谁先创建临时节点谁就激活， 记录 Meta Table 的具体位置等功能；
-* **RegionServer**: 一个 RegionServer 中可维护多个 region，一个 region 维护着一个 key space 记录着 key 的开始和结束，一个 region 里包含多个 store，一个 store（也就是逻辑上的列族，column family） 里有一个 MemStore 以及零个或多个 HFiles，数据在每一个列族访问和存储是相互分开的;
+* **Region**: 一张 BigTable 的一个分片（Shard），其包含着一个 key space 记录着 key 的开始和结束；
+* **WAL**: 预写日志，持久化且顺序存储，一个 RegionServer 维护一套 WAL；(Eventually Consistency 的保证)
+* **RegionServer**: 一个 RegionServer 中可维护多个 region，一个 region 里包含多个 MemStore（也就是逻辑上的列族，column family） 以及零个或多个 HFiles；
+* **MemStore**: 对应一个 BigTable 的 Column Family，存在于文件缓存中，拥有文件句柄；
+* **BlockCache**: LRU 读缓存，存于内存；(rowkey --> row)；
+* **HFiles**: 从MemStore Flush出来的文件，本身是持久化的，存储于 HDFS 的 DataNode 之中，每次Flush生成一个新的 HFile 文件，文件包含有序的键值对序列。后续会介绍 HFile 的数据结构。
 
 ## 写与写缓存（MemStore）
 先来看看 Region Server 大致的结构
 ![regionserver](regionserver.png)
-1. **WAL**: Write Ahead Log，顺序存储未持久化完成的新数据，用于从错误中恢复；(Eventually Consistency 的保证)
-2. **BlockCache**: LRU 读缓存，存于内存；(rowkey --> row)
-3. **MemStore**: 写缓存，即刷盘前的FS cache，每一个 region 的每一个 column family 有一个 MemStore;
-4. **HFile**: 刷盘时，MemStore 数据会转化成 Hfile，是磁盘上的数据文件，存储有序的键值对序列。
 
 那么写的过程是怎样的呢？
 
@@ -46,7 +47,8 @@ WAL —> MemStore —> flush to HFiles
 
 ![write2](write2.png)
 ![write3](write3.png)
-> **Tips**：HBase 中每个 column family 对应一个 MemStore，但对应多个 HFiles，也就是包含了多个 autual cells或者 KeyValue 实例，这些KeyValue 是以有序的方式组织成 HFiles 的，顺序且一次性写入，每次 flush 都会生成一个新的 HFile，非常快速。（这里的 CF 是 column family）,关于 HFile 的拆分和合并，后续会有交代。
+
+> **Tips**：HBase 中每个 column family 对应一个 MemStore，对应多个 HFiles，也就是包含了多个 autual cells或者 KeyValue 实例，这些KeyValue 是以有序的方式组织成 HFiles 的，顺序且一次性写入，每次 flush 都会生成一个新的 HFile，非常快速。（这里的 CF 是 column family）,关于 HFile 的拆分和合并，后续会有交代。
 
 ## 读与读缓存(BlockCache)
 在没有缓存的情况下，整个读的流程应该是这样的
@@ -55,11 +57,10 @@ WAL —> MemStore —> flush to HFiles
 2. client 依据 Meta table 查到 row key想访问的那一个 region server A，并且将其meta缓存起来；
 3. 从这个 region server A 中获取到 row key 对应的 行（Row）；
 4. 之后的查询都是从 client 缓存读取 meta 信息从对应的 region server 查询；(如果缓存中查询不到对应的数据那么将从第一步重新开始)
-![metadata](metadata.png)
-metatable 维护了一个 B 树结构。
+![MetaData 相当于是路由表](metadata.png)
 
 ## HFiles 数据结构（重点）
-![hfiles3](hfiles3.png)
+![HFile 逻辑结构](hfiles3.png)
 逻辑上包含以下几个部分：
 * **Scanned block section**: 在 HBase 顺序扫描 HFiles 的时候需要被读取的块内容；
 * **Non-scanned block section**: 在 HBase 顺序扫描 HFiles 的时候不会被读取的块内容，主要包括Meta Block和Intermediate Level Data Index Blocks两部分；
@@ -74,8 +75,7 @@ metatable 维护了一个 B 树结构。
 * HFile 内置了一个 B+ 树索引，当 RegionServer 启动后并且 HFile 被打开的时候，这个索引会被加载到 Block Cache 即内存里；
 * Root index 指向 Intermediate Level Data Index Blocks；
 * KeyValues 存储在增长中的队列中的数据块里，数据块可以指定大小，默认64k，数据块越大，顺序检索能力越强；数据块越小，随机读写能力越强，需要权衡；
-* Intermediate Level Data Index Blocks 维护了每一个数据块的最后一个 key；
-* 根据Intermediate Level Data Index Blocks找到对应的叶子节点 leaf index，就可以找到数据（Data Block）了；
+* Intermediate Level Data Index Blocks 指向 Leaf Index，这个索引包含了该数据块下的最后一个 key 值，根据这个 key 就可以确定需要检索的 Data Block了；
 * 支持 Bloom Filter（用于排除 没包含指定 rowkey 的 HFile） 与 Time Range Info（用于排除不在指定时间断的 HFile）；
 
 ## 合并读
@@ -86,12 +86,13 @@ metatable 维护了一个 B 树结构。
 ![](readamplification.png)
 ## HBase 压缩策略
 #### *Minor Compaction*
-自动检查小文件，合并到大文件，从而减少碎片文件。
+根据配置策略，自动检查小文件，合并到大文件，从而减少碎片文件，然而并不会立马删除掉旧 HFile 文件。
 ![](minicompaction.png)
 #### *Major Compaction*
-每个 CF 中，将 HFiles 合并到一个大的 HFile 中，即CF 与 HFile 最终变成一一对应的关系。
+与上边不同，每个 CF 中，不管有多少个 HFiles 文件，最终都是将 HFiles 合并到一个大的 HFile 中，并且把所有的旧 HFile 文件删除，即CF 与 HFile 最终变成一一对应的关系。
 ![](majorcompaction.png)
-这种做法改善了读的性能，避免了读放大（**Read Amplifiation**）的情况出现，但是会导致写放大（**Write Amplification**）,写的时候 IO 会有一定的压力。一般低峰的时候才会进行 Major Compaction。
+
+HBase Compaction 改善了读的性能，避免了读放大（**Read Amplifiation**）的情况出现，但是会导致写放大（**Write Amplification**）,写的时候 IO 会有一定的压力。尤其是一般低峰的时候才会进行 Major Compaction。
 
 ## Region 的拆分
 ![](regionsplit1.png)
@@ -132,8 +133,9 @@ HBase 为 WAL 以及 HFile 创建 HDFS 副本
 * 可以利用列标识来存储数据，例如可以将 A 用户的关注者放到一个 Column Families 中维护，每新增一个关注者就添加一个列标识（Column Qualify）;
 * 列标识命名长度和列族名字长度都会影响 IO 读写性能，因此应该命名越简洁越好！
 
-**推荐阅读：**
-* https://mapr.com/blog/in-depth-look-hbase-architecture/#.VdMxvWSqqko
-* https://hortonworks.com/blog/apache-hbase-region-splitting-and-merging/
-* http://hbasefly.com/
-* http://hbase.apache.org/book.html#_preface
+Further Reading:
+
+https://mapr.com/blog/in-depth-look-hbase-architecture/#.VdMxvWSqqko
+https://hortonworks.com/blog/apache-hbase-region-splitting-and-merging/
+http://hbasefly.com/
+http://hbase.apache.org/book.html#_preface

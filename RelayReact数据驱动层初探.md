@@ -1,7 +1,7 @@
 ---
 title: Relay | React数据驱动层初探
 date: 2016-04-06 11:01:31
-tags: [web前端,React,Relay,组件化]
+tags: [web前端,React,Relay,前端组件化]
 categories: 前端那些事儿
 ---
 ![The Relay](roger-stack.png "The Relay")

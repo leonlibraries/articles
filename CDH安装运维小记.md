@@ -1,7 +1,7 @@
 ---
 title: CDH安装运维小记
 date: 2017-04-13 10:27:15
-tags: [大数据,架构,CDH,Hadoop,HBase]
+tags: [大数据,CDH,Hadoop,HBase]
 categories: 大数据
 ---
 
