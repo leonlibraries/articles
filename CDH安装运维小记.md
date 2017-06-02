@@ -165,10 +165,24 @@ reboot
 ，文档所涉及的上边的脚本有覆盖，因此不需要做相关动作了。
 
 ### 安装过程遇到的问题
+
+##### 单用户模式启动遇到的问题
+
 单用户安装过程在最后一步启动 zookeeper 的时候，会报出一个错误```cloudera KeyError: 'getpwnam(): name not found: zookeeper'```以至于后续组件无法初始化和启动。然而实际上在仪表盘上启动 zk 集群是能成功的，这就很纠结了。
 这个报错的意思是 zookeeper 的初始化和安装过程需要一个叫「zookeeper」的用户去做，然而系统里找不到这个用户，然而我用的是单用户模式，理应这个用户只有可能是「cloudera-scm」，因此我暂时将其归结为一个 Bug。
 我怎么去避开这个 Bug 呢？
 其实很简单，先安装 zookeeper 集群，手动在仪表盘里启动集群，启动成功后，一步一步添加其他组件（HDFS、Hive、Spark、HBase、Yarn 等）集群搭建完成。就这么简单。
+
+##### agent 无法启动且没有任何报错日志
+这种情况特别诡异，直到我查到了这么一个issue
+https://github.com/mattshma/bigdata/issues/65
+其实 agent 启动不了大多数和 hostname 有关，我之前的 hostname 命名包含了下划线，实际上用起来没问题，但是不符合规则的。
+
+>The Internet standards (Requests for Comments) for protocols mandate that component hostname labels may contain only the ASCII letters 'a' through 'z' (in a case-insensitive manner), the digits '0' through '9', and the hyphen ('-'). The original specification of hostnames in RFC 952, mandated that labels could not start with a digit or with a hyphen, and must not end with a hyphen. However, a subsequent specification (RFC 1123) permitted hostname labels to start with digits. No other symbols, punctuation characters, or white space are permitted.
+While a hostname may not contain other characters, such as the underscore character (\_), other DNS names may contain the underscore.[4] Systems such as DomainKeys and service records use the underscore as a means to assure that their special character is not confused with hostnames. For example, \_http.\_sctp.www.example.com specifies a service pointer for an SCTP capable webserver host (www) in the domain example.com. Note that some applications (e.g. Microsoft Internet Explorer) won't work correctly if any part of the hostname contains an underscore character.[5]
+
+正确的 hostname 命名由 ``a-zA-z``,``0-9``和``-``组成。
+这也是个坑，找不到任何报错日志，就是启动不了 agent。如果不 google 一下恐怕难以解决问题。
 
 ![CDH](CDH.jpeg)
 
