@@ -163,6 +163,8 @@ reboot
 执行完脚本自动重启，包括 MySQL 和 Cloudera Manager Server 也会自动重启回来，接来下就可以利用 Parcels 进行集群安装和部署了，当然这个过程是可视化的。
 这里我使用的是单用户模式做集群部署的，也可以参考如下文档https://www.cloudera.com/documentation/enterprise/latest/topics/install_singleuser_reqts.html#concept_o5q_stg_2v
 ，文档所涉及的上边的脚本有覆盖，因此不需要做相关动作了。
+![CDH](CDH.jpeg)
+
 
 ### 安装过程遇到的问题
 
@@ -172,6 +174,7 @@ reboot
 这个报错的意思是 zookeeper 的初始化和安装过程需要一个叫「zookeeper」的用户去做，然而系统里找不到这个用户，然而我用的是单用户模式，理应这个用户只有可能是「cloudera-scm」，因此我暂时将其归结为一个 Bug。
 我怎么去避开这个 Bug 呢？
 其实很简单，先安装 zookeeper 集群，手动在仪表盘里启动集群，启动成功后，一步一步添加其他组件（HDFS、Hive、Spark、HBase、Yarn 等）集群搭建完成。就这么简单。
+
 
 ##### agent 无法启动且没有任何报错日志
 这种情况特别诡异，直到我查到了这么一个issue
@@ -184,8 +187,10 @@ While a hostname may not contain other characters, such as the underscore charac
 正确的 hostname 命名由 ``a-zA-z``,``0-9``和``-``组成。
 这也是个坑，找不到任何报错日志，就是启动不了 agent。如果不 google 一下恐怕难以解决问题。
 
-![CDH](CDH.jpeg)
+##### sudo: sorry, you must have a tty to run sudo
+出现这个问题是跟你的 cloudera-scm 账户权限有关，解决办法是修改 ``/etc/sudoers``文件
 
+将 ``Defaults requiretty`` 修改为 ``Defaults !requiretty`` 即可！
 ### 通过 Parcels 升级组件
 ![upgrade1](upgrade1.jpeg)
 ![upgrade2](upgrade2.jpeg)
