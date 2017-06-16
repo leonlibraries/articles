@@ -221,6 +221,25 @@ value is created, it is created in the first file that exists.  If no files in t
 file in the list.
   3. Otherwise, ${HOME}/.kube/config is used and no merging takes place.
 ```
+
+除了上边的方法，还可以通过 ``config`` 子命令简单设置 kubectl，但这种方式不太适合复杂的 CA 认证的情况。以下做简单介绍
+
+假设我本机启动了 API Server，且 API Server 绑定的是非安全端口8888，不需要 CA 认证，这种情况可以这么玩。
+
+设置一个叫``default-cluster``的集群名，且指向该 API Server
+```txt
+kubectl config set-cluster default-cluster --server=http://127.0.0.1:8888
+```
+将default-cluster 绑定到一个名叫``default-system``上下文中，并应用于当前的上下文
+```txt
+kubectl config set-context default-system --cluster=default-cluster
+
+kubectl config use-context default-system
+```
+配置完毕！
+
+
+
 ### 安装 Flannel 网络方案：保证 Pod 与 Pod 之间能够相互通信 （Master 节点）
 将下面配置保存成文件 ``kube-fannel-rbac.yml``
 ```yaml
