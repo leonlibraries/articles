@@ -238,8 +238,14 @@ kubectl config use-context default-system
 ```
 配置完毕！
 
+对于非 master 节点来说又该如何配置 kubectl 呢？
 
-
+官方也提供了一个方法：
+```txt
+scp root@<master ip>:/etc/kubernetes/admin.conf .
+kubectl --kubeconfig ./admin.conf proxy
+```
+原理和 master 是一样的，不做过多说明。
 ### 安装 Flannel 网络方案：保证 Pod 与 Pod 之间能够相互通信 （Master 节点）
 将下面配置保存成文件 ``kube-fannel-rbac.yml``
 ```yaml
