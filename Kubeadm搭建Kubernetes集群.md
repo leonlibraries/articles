@@ -4,14 +4,14 @@ date: 2017-06-15 10:27:15
 tags: [Docker,应用编排,Kubernetes,Systemd,Flannel]
 categories: 云平台
 ---
-### Overview
+## Overview
 ![](monitor.jpeg)
 
 本文简单介绍如何利用 Kubeadm 搭建 Kubernetes 1.6.4 集群的方法，网络方案采用Flannel(Overlay)。不对原理和架构有过多阐述和讲解。
 
 废话少说，立马开始！
 
-### 环境
+## 环境
 四台机器（CentOS7.1）
 ```txt
 192.168.80.23  (master)
@@ -24,7 +24,7 @@ Kubernetes 版本: 1.6.4
 
 **PS：确保服务器 yum 安装器可以科学上网**
 
-### Systemd: 系统级进程管理工具，管理 Docker 与 Kubelet
+## Systemd: 系统级进程管理工具，管理 Docker 与 Kubelet
 这里不管是 Docker 也好，Kubelet 也罢，都是通过 Systemd 来管理进程的，因此有必要对此做一定的了解。
 
 ![systemd 底层架构](systemd.png)
@@ -37,7 +37,7 @@ Systemd 取代了之前 Centos6 init.d 的进程管理方式，然而 Systemd �
 
 可以参考这篇文章 http://www.ruanyifeng.com/blog/2016/03/systemd-tutorial-commands.html
 
-### 安装 Docker （所有节点均要安装）
+## 安装 Docker （所有节点均要安装）
 在[官网的 rpm 仓库](https://yum.dockerproject.org/repo/main/centos/7/Packages/)中找到要下载的 docker 版本 ，然后下载下来并安装
 ```txt
 wget https://yum.dockerproject.org/repo/main/centos/7/Packages/docker-engine-1.12.3-1.el7.centos.x86_64.rpm
@@ -69,7 +69,7 @@ Server:
  OS/Arch:      linux/amd64
 ```
 
-### 安装 Kubectl 客户端工具 （所有节点均要安装）
+## 安装 Kubectl 客户端工具 （所有节点均要安装）
 ```txt
 curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.6.4/bin/linux/amd64/kubectl
 
@@ -79,7 +79,7 @@ sudo mv ./kubectl /usr/local/bin/kubectl
 ```
 安装好就放着，不管先。
 
-### 安装 Kubeadm （所有节点均要安装）
+## 安装 Kubeadm （所有节点均要安装）
 
 ```txt
 cat <<EOF > /etc/yum.repos.d/kubernetes.repo
@@ -99,7 +99,7 @@ systemctl enable kubelet && systemctl start kubelet
 ```
 这个时候如果科学上网设置正确，就可以顺利完成。
 
-### Kubeadm 初始化集群 （Master 节点）
+## Kubeadm 初始化集群 （Master 节点）
 
 ##### Docker 代理设置
 
@@ -175,7 +175,7 @@ as root:
 记得要把 token 保留下来，后续增加机器节点需要用到。
 
 
-### 配置 Kubectl 客户端工具 （Master 节点）
+## 配置 Kubectl 客户端工具 （Master 节点）
 
 ```txt
 sudo cp /etc/kubernetes/admin.conf $HOME/
@@ -246,7 +246,7 @@ scp root@<master ip>:/etc/kubernetes/admin.conf .
 kubectl --kubeconfig ./admin.conf proxy
 ```
 原理和 master 是一样的，不做过多说明。
-### 安装 Flannel 网络方案：保证 Pod 与 Pod 之间能够相互通信 （Master 节点）
+## 安装 Flannel 网络方案：保证 Pod 与 Pod 之间能够相互通信 （Master 节点）
 将下面配置保存成文件 ``kube-fannel-rbac.yml``
 ```yaml
 # Create the clusterrole and clusterrolebinding:
@@ -398,7 +398,7 @@ kubectl apply -f kube-fannel.yml
 即可。
 到这一步为止，Master 节点的安装过程完毕。
 
-### 新增机器节点 （其余 Node 节点）
+## 新增机器节点 （其余 Node 节点）
 新机器的 Kubeadm 是已经装好了的，Docker 代理也是要配置的，镜像最好也是要预先拉取的，拉取的镜像和上边一致。准备工作完成之后就可以执行如下指令
 
 ```txt
@@ -417,7 +417,7 @@ Node4   Ready     2d        v1.6.4
 节点信息状态为``Ready``表示节点加入成功。
 
 
-### 安装 Dashboard （Master 节点）
+## 安装 Dashboard （Master 节点）
 
 将以下配置保存成文件 ``kube-dashboard.yml``
 ```yaml
@@ -533,7 +533,7 @@ nohup kubectl proxy --address='192.168.80.23' --port=8989 --accept-hosts='^*$' &
 ```
 这时候就能访问 Dashboard 了。
 ![仪表盘](dashboard.jpeg)
-### 增加 Heapster 支持（Master 节点）
+## 增加 Heapster 支持（Master 节点）
 
 Heapster 是 Kubernetes 的一个监控组件，基于 Grafana 和 influxdb 实现，我们这里安装的是1.3.0的版本，安装步骤如下
 ```txt
@@ -547,7 +547,7 @@ kubectl create -f heapster-1.3.0/deploy/kube-config/influxdb
 ![监控仪表盘](monitor.jpeg)
 
 
-### 官方用例部署
+## 官方用例部署
 官方演示了一个袜子商城，以微服务的形式部署起来
 ```txt
 kubectl create namespace sock-shop
@@ -569,7 +569,7 @@ kubectl apply -n sock-shop -f "https://github.com/microservices-demo/microservic
 
 如果加购物车功能能够跑通，就说明集群搭建成功，没毛病。
 
-### Troubleshooting
+## Troubleshooting
 
 安装过程中不免遇到一些障碍，这里稍作总结：
 
