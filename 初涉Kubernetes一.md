@@ -109,6 +109,28 @@ kube-proxy 负责 Iptables 的 DNAT 规则的维护，这个维护与 Service �
 
 至于改写之后的 IP 地址为什么就能路由到对应的 Pod 上呢？这个下一篇文章讨论。
 
+```txt
+[root@kafka4 ~]# iptables --table nat --list |grep payment
+KUBE-MARK-MASQ  all  --  10.244.1.13          anywhere             /* sock-shop/payment: */
+DNAT       tcp  --  anywhere             anywhere             /* sock-shop/payment: */ tcp to:10.244.1.13:80
+KUBE-MARK-MASQ  all  --  10.244.3.2           anywhere             /* sock-shop/payment: */
+DNAT       tcp  --  anywhere             anywhere             /* sock-shop/payment: */ tcp to:10.244.3.2:80
+KUBE-MARK-MASQ  tcp  -- !10.244.0.0/16        10.109.104.9         /* sock-shop/payment: cluster IP */ tcp dpt:http
+KUBE-SVC-T7TCZ5NWHRXELJYN  tcp  --  anywhere             10.109.104.9         /* sock-shop/payment: cluster IP */ tcp dpt:http
+KUBE-SEP-OO2TWKZ7ZV6AUJIZ  all  --  anywhere             anywhere             /* sock-shop/payment: */ statistic mode random probability 0.50000000000
+KUBE-SEP-UV4LMV4IYDXHR55Y  all  --  anywhere             anywhere             /* sock-shop/payment: */
+```
+
+
+对于使用 NodePort 的方式绑定 Node 上的端口，可以看这个前端容器的例子：
+```txt
+[root@kafka4 ~]# iptables-save |grep front-end
+-A KUBE-NODEPORTS -p tcp -m comment --comment "sock-shop/front-end:" -m tcp --dport 30001 -j KUBE-MARK-MASQ
+-A KUBE-NODEPORTS -p tcp -m comment --comment "sock-shop/front-end:" -m tcp --dport 30001 -j KUBE-SVC-LFMD53S3EZEAOUSJ
+...省略后面内容...
+```
+
+
 
 ## 小结
 
