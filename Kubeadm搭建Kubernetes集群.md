@@ -7,7 +7,7 @@ categories: 云平台
 ## Overview
 ![](monitor.jpeg)
 
-本文简单介绍如何利用 Kubeadm 搭建 Kubernetes 1.6.4 集群的方法，网络方案采用Flannel(Overlay)。不对原理和架构有过多阐述和讲解。
+本文简单介绍如何利用 Kubeadm 搭建 Kubernetes 1.6.4 集群的方法，网络方案采用Flannel(Overlay)。本篇不对原理和架构有过多阐述和讲解，只阐述步骤。
 
 废话少说，立马开始！
 
@@ -22,7 +22,7 @@ categories: 云平台
 Docker 版本: 1.12.3
 Kubernetes 版本: 1.6.4
 
-**PS：确保服务器 yum 安装器可以科学上网**
+**PS：确保 yum 安装器可以科学上网**
 
 ## Systemd: 系统级进程管理工具，管理 Docker 与 Kubelet
 这里不管是 Docker 也好，Kubelet 也罢，都是通过 Systemd 来管理进程的，因此有必要对此做一定的了解。
@@ -49,7 +49,7 @@ yum install docker-engine-1.12.3-1.el7.centos.x86_64.rpm
 systemctl enable docker
 systemctl start docker
 ```
-可以看到 docker 已经安装完毕
+可以看到 docker 已经安装并启动完毕
 ```txt
 [root@Node1 ~]# docker version
 Client:
@@ -108,7 +108,7 @@ systemctl enable kubelet && systemctl start kubelet
 vim /etc/systemd/system/docker.service.d/http-proxy.conf
 
 [Service]
-Environment="HTTP_PROXY=http://192.168.80.15:8118/" "NO_PROXY=localhost,127.0.0.1,docker.jcing.com,docker-registry.bluemoon.com.cn"
+Environment="HTTP_PROXY=http://192.168.80.15:8118/" "NO_PROXY=localhost,127.0.0.1,docker.jcing.com,192.168.80.15"
 ```
 这里注意要过滤掉本地配置的 Docker 私有镜像库的域名或者 IP 地址，否则私有库用不了。
 
@@ -119,7 +119,7 @@ systemctl restart docker
 ```
 ##### 预下载镜像，加快初始化进程
 
-这里列举镜像列表
+这里建议先把下面的镜像通过 ``docker pull`` 命令手动下载下来
 
 镜像  | 版本 | 组件
 ------------- | -------------
@@ -246,7 +246,7 @@ scp root@<master ip>:/etc/kubernetes/admin.conf .
 kubectl --kubeconfig ./admin.conf proxy
 ```
 原理和 master 是一样的，不做过多说明。
-## 安装 Flannel 网络方案：保证 Pod 与 Pod 之间能够相互通信 （Master 节点）
+## 安装 Flannel 网络方案：保证不同主机间 Pod 与 Pod 之间能够相互通信 （Master 节点）
 将下面配置保存成文件 ``kube-fannel-rbac.yml``
 ```yaml
 # Create the clusterrole and clusterrolebinding:

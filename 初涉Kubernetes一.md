@@ -1,5 +1,5 @@
 ---
-title: 初涉 Kubernetes(一)
+title: 初涉 Kubernetes(一)：组件认知
 date: 2017-06-23 15:56:15
 tags: [Docker,应用编排,Kubernetes,调度算法]
 categories: 云平台
@@ -24,7 +24,9 @@ API Server 是 Kubernetes 非常核心的一个组件，主要的作用就是提
 
 ![Kubernetes 组件架构图](Kubernetes.001.png)
 
-整个 Kubernetes 组件大致就是这样的，可以见得 API Server 起着枢纽的作用，元数据都会通过 API Server 存到 Etcd 集群之中。无论是 Controller Manager 还是 Scheduler，抑或是 Kubelet 都要直接与 API Server 进行数据对接。其中 Kubelet 的作用是将自身资源情况上报给 API Server 以及 Watch Pod 的创建以及删除，如果这个 Pod 与自己的 Node 有关，那么就要进行下一步的拉取镜像、创建容器或删除容器操作。
+整个 Kubernetes 组件大致就是这样的，可以见得 API Server 起着枢纽的作用，元数据都会通过 API Server 存到 Etcd 集群之中。无论是 Controller Manager 还是 Scheduler，抑或是 Kubelet 都要直接与 API Server 进行数据对接。
+
+其中 Kubelet 的作用是将自身资源情况上报给 API Server 以及 Watch Pod 的创建以及删除，如果这个 Pod 与自己的 Node 有关，那么就要进行下一步的拉取镜像、创建容器或删除容器操作，这个后续将会提及到。
 
 ## Controller Manager
 
@@ -90,9 +92,9 @@ Kubernetes 创建服务的时候，通常会给这个服务一个 Cluster IP，�
 ![kube-proxy 分发逻辑](Kubernetes.004.png)
 
 
-kube-proxy 负责 Iptables 的 DNAT 规则的维护，这个维护与 Service 的生命周期是息息相关的。kube-proxy 监听了 Service 的创建和删除的事件，实时维护这一套路由规则，当 Service 请求来临的时候，根据指定的规则转发到被改写后的 Pod IP 和 port。因此我们可以看到，Cluster IP 之所以称之为虚拟的 IP，是因为其仅仅是在 Iptables 路由表里维护，并非实际意义的 IP。这个做法相当巧妙！
+kube-proxy 负责 Iptables 的 DNAT 规则的维护，这个维护与 Service 的生命周期是息息相关的。kube-proxy 监听了 Service 的创建和删除的事件，实时维护这一套路由规则，当 Service 请求来临的时候，根据指定的规则转发到被改写后的 Pod IP 和 port。因此我们可以看到，Cluster IP 之所以称之为虚拟的 IP，是因为其仅仅是在 Iptables 里维护，并非实际意义的 IP。这个做法相当巧妙！
 
-我们来看下 sock-shop 微服务下 payment 的 Iptables 路由规则
+我们来看下 sock-shop 微服务下 payment 的 Iptables 规则
 
 ```txt
 [root@node2 ~]# iptables-save |grep payment
@@ -122,7 +124,7 @@ KUBE-SEP-UV4LMV4IYDXHR55Y  all  --  anywhere             anywhere             /*
 ```
 
 
-对于使用 NodePort 的方式绑定 Node 上的端口，可以看这个前端容器的例子：
+对于使用 NodePort 的方式绑定 Node 上的端口的情况，可以看这个 front-end 容器的例子：
 ```txt
 [root@kafka4 ~]# iptables-save |grep front-end
 -A KUBE-NODEPORTS -p tcp -m comment --comment "sock-shop/front-end:" -m tcp --dport 30001 -j KUBE-MARK-MASQ
