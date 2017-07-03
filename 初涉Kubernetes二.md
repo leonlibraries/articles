@@ -350,9 +350,9 @@ Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
 
 我们可以看到掩码为``255.255.255.192``的网段，如 Node1的 ``192.168.115.128/27``和 Node2的 ``192.168.250.64/27``就是挂载在本节点下的 Pod IP 网段，我们可以在该节点下通过 Pod IP 路由到对应的 ``cali`` 开头的网络设备上，这个``cali``开头的设备实际上是 veth 设备对的一端，另一端是直接连入对应的容器内。这样一来网络就通了，**此间并没有借助网桥设备**。
 
-问题来了，我并没看到跨主机的相关路由。以 DNS 服务为例（DNS 服务需要每个节点每个容器都能访问），其 Pod IP 为``192.168.115.135``，我们可以发现 node1 本身是可以直接联通 DNS 服务的，然而其余节点一律无法访问。很明显我们缺少了配置，导致网络没有完全搭建起来。
+问题来了，我并没看到跨主机的相关路由。以 DNS 服务为例（DNS 服务需要每个节点每个容器都能访问），其 Pod IP 为``192.168.115.135``，我们可以发现 node1 本身是可以直接联通 DNS 服务的，然而其余节点一律无法访问。很明显我的配置不正确，导致网络没有完全搭建起来。
 
-通过观察，我发现``192.168.115.128/27``是 DNS 服务所处的网段，我在 node2手动配置一个路由，将处于这个网段的请求都转发到``192.168.80.23``上去
+发现``192.168.115.128/27``是 DNS 服务所处的网段，我尝试在 node2 手动配置一个路由，将处于这个网段的请求都转发到``192.168.80.23``上去
 ```txt
 route add -net 192.168.115.128 netmask 255.255.255.192 gw 192.168.80.23
 ```
@@ -365,7 +365,7 @@ PING 192.168.115.135 (192.168.115.135) 56(84) bytes of data.
 64 bytes from 192.168.115.135: icmp_seq=3 ttl=63 time=0.152 ms
 ```
 
-然而正常使用的 Calico 不应该这么麻烦，这种路由应该是可以通过 BGP 协议习得的。我们来简单研究下 BGP
+然而正常使用的 Calico 不应该这么麻烦，这种路由应该是可以通过 BGP 协议习得的。
 
 我们通过 ``calicoctl node status`` 命令发现了问题，这三个 IP 地址并不存在系统中，这很奇怪
 
@@ -453,6 +453,8 @@ https://dingtongqin.github.io/technology/openvswitch/
 http://www.oolap.com/openvswitch-vlan
 http://edgedef.com/docker-networking.html
 https://en.wikipedia.org/wiki/Border_Gateway_Protocol
+https://www.projectcalico.org/learn/
 http://docs.projectcalico.org/v2.3/getting-started/kubernetes/installation/hosted/kubeadm/
 http://docs.projectcalico.org/master/reference/node/configuration#ip-autodetection-methods
+[calico 安装文件](https://raw.githubusercontent.com/leonlibraries/article-doc/master/calico.yaml)
 《Kubernetes 权威指南：从 Docker 到 Kubernetes 实践全接触》
